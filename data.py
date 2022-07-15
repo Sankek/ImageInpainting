@@ -55,4 +55,4 @@ class InpaintingDataset(DataFolder):
         img = self.transform(img)
         mask = torch.FloatTensor(self.mask_generator.generate()).unsqueeze(0).expand(self.channels, -1, -1)
         
-        return img, mask
+        return img*mask, mask, img

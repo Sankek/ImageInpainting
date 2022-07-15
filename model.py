@@ -143,8 +143,8 @@ class MultiArgSequential(nn.Sequential):
 
         
 class PConvUNet(nn.Module):
-    def __init__(self):
-        super().__init__(channels=3)
+    def __init__(self, channels=3):
+        super().__init__()
         self.train_encoder_bn = True
 
         self.conv0 = MultiArgSequential(
