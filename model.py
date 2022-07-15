@@ -144,11 +144,11 @@ class MultiArgSequential(nn.Sequential):
         
 class PConvUNet(nn.Module):
     def __init__(self):
-        super().__init__()
+        super().__init__(channels=3)
         self.train_encoder_bn = True
 
         self.conv0 = MultiArgSequential(
-          ConvLayer(3, 64, 5, padding=2, mode = 'pconv'),
+          ConvLayer(channels, 64, 5, padding=2, mode = 'pconv'),
         )
         self.pool0 = ConvLayer(64, 128, 3, stride=2, padding=1, mode = 'pconv') # 256 -> 128
         self.conv1 = MultiArgSequential(
@@ -180,8 +180,8 @@ class PConvUNet(nn.Module):
         )
         self.pool5 = nn.Upsample(scale_factor=2, mode='nearest') # 128 -> 256
         self.conv5 = MultiArgSequential(
-          ConvLayer(128+64, 64, 3, padding=1, mode = 'pconv'),
-          PConv2d(64, 1, kernel_size=3, 
+          ConvLayer(128+64, 64, channels, padding=1, mode = 'pconv'),
+          PConv2d(64, channels, kernel_size=3, 
                   padding=1, stride=1), # no activation
         )
         
