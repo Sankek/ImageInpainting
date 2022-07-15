@@ -40,10 +40,11 @@ class DataFolder(Dataset):
     
     
 class InpaintingDataset(DataFolder):
-    def __init__(self, path, image_size, dataset_mean=[0.5]*3, dataset_std=[0.5]*3, ext='jpg'):
+    def __init__(self, path, image_size, channels=3, dataset_mean=[0.5]*3, dataset_std=[0.5]*3, ext='jpg'):
         super().__init__(path, dataset_mean=dataset_mean, dataset_std=dataset_std, ext=ext)
     
         self.image_size = image_size
+        self.channels = channels
         self.mask_generator = MaskGenerator(image_size, image_size)
 
         
@@ -52,6 +53,6 @@ class InpaintingDataset(DataFolder):
         img = Image.open(file)
         
         img = self.transform(img)
-        mask = torch.FloatTensor(self.mask_generator.generate()).unsqueeze(0)
+        mask = torch.FloatTensor(self.mask_generator.generate()).unsqueeze(0).expand(self.channels, -1, -1)
         
         return img, mask
