@@ -144,6 +144,7 @@ class MultiArgSequential(nn.Sequential):
 class PConvUNet(nn.Module):
     def __init__(self):
         super().__init__()
+        self.train_encoder_bn = True
 
         self.conv0 = MultiArgSequential(
           ConvLayer(3, 64, 5, padding=2, mode = 'pconv'),
@@ -158,6 +159,8 @@ class PConvUNet(nn.Module):
           ConvLayer(256, 256, 3, padding=1, mode = 'pconv'),
         )
         self.pool2 = ConvLayer(256, 256, 3, stride=2, padding=1, mode = 'pconv') # 64 -> 32
+        
+        self.encoder = ([self.conv0, self.pool0, self.conv1, self.pool1, self.conv2, self.pool2])
         
         # bottleneck
         self.bottleneck = MultiArgSequential(
@@ -180,6 +183,14 @@ class PConvUNet(nn.Module):
           PConv2d(64, 1, kernel_size=3, 
                   padding=1, stride=1), # no activation
         )
+        
+    def train(self):
+        super().train()
+        if not self.train_encoder_bn:
+            for submodule in self.encoder:
+                for name, module in submodule.named_modules():
+                    if isinstance(module, nn.BatchNorm2d):
+                        module.eval()
 
     def forward(self, input, input_mask):
         # encoder
