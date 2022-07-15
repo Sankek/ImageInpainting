@@ -1,6 +1,7 @@
 import numpy as np
 import os
 
+import torch
 from torchvision import transforms as tt
 from torch.utils.data import Dataset
 from PIL import Image
@@ -51,6 +52,6 @@ class InpaintingDataset(DataFolder):
         img = Image.open(file)
         
         img = self.transform(img)
-        mask = torch.FloatTensor(self.mask_generator(generate)[np.newaxis, :, :])
+        mask = torch.FloatTensor(self.mask_generator.generate()).unsqueeze(0)
         
         return img, mask

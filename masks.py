@@ -113,7 +113,7 @@ class MaskGenerator:
         if np.random.choice(2):
             grid = np.flip(grid, axis=1) 
 
-        return grid
+        return np.ascontiguousarray(grid)
     
     
     def get_fullness_groups(self):
