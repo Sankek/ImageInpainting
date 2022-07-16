@@ -268,7 +268,7 @@ class InpaintingLoss(nn.Module):
                  pred_perceptual_factor=0.05, 
                  comp_perceptual_factor=0.05, 
                  pred_style_factor=120, 
-                 comp_stype_factor=120, 
+                 comp_style_factor=120, 
                  tv_factor=0.1,
                  device='cpu'
                 ):
