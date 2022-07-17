@@ -1,6 +1,29 @@
 import torch
 import torch.nn as nn
 
+
+class VGG16FE(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.vgg16 = torchvision.models.vgg16(pretrained=True)
+        
+        self.feature_layers = [
+            self.vgg16.features[:5], 
+            self.vgg16.features[5:10], 
+            self.vgg16.features[10:17]
+        ]
+        
+        for layer in self.feature_layers:
+            for param in layer.parameters():
+                param.requires_grad = False
+                
+    def forward(self, input):
+        f0 = self.feature_layers[0](input)
+        f1 = self.feature_layers[0](f0)
+        f2 = self.feature_layers[0](f1)
+
+        return [f0, f1, f2]
+    
     
 class PConv2d(nn.Module):
     """

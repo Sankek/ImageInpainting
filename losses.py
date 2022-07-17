@@ -50,38 +50,6 @@ class TVLoss(nn.Module):
         return height_variation + width_variation
 
 
-class FeatureExtractor:
-    def __init__(self, layers):
-        self.feature_layers = layers
-        
-        for layer in self.feature_layers:
-            for param in layer.parameters():
-                param.requires_grad = False
-
-              
-            
-class VGG16FE(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.vgg16 = torchvision.models.vgg16(pretrained=True)
-        
-        self.feature_layers = [
-            self.vgg16.features[:5], 
-            self.vgg16.features[5:10], 
-            self.vgg16.features[10:17]
-        ]
-        
-        for layer in self.feature_layers:
-            for param in layer.parameters():
-                param.requires_grad = False
-                
-    def forward(self, input):
-        f0 = self.feature_layers[0](input)
-        f1 = self.feature_layers[0](f0)
-        f2 = self.feature_layers[0](f1)
-
-        return [f0, f1, f2]
-
 class PerceptualLoss(nn.Module):
     """
     Computes perceptual loss. 
@@ -263,6 +231,7 @@ class InpaintingLoss(nn.Module):
     output : scalar
     """
     def __init__(self, 
+                 feature_extractor
                  valid_l1_factor=1, 
                  hole_l1_factor=6,
                  pred_perceptual_factor=0.05, 
@@ -270,10 +239,9 @@ class InpaintingLoss(nn.Module):
                  pred_style_factor=120, 
                  comp_style_factor=120, 
                  tv_factor=0.1,
-                 device='cpu'
                 ):
         super().__init__()
-        self.feature_extractor = VGG16FE().to(device)
+        self.feature_extractor = feature_extractor
         self.masked_l1 = MaskedL1Loss()
         self.tv_loss = TVLoss()
         self.ps_loss = PerceptualStyleLoss(self.feature_extractor)
