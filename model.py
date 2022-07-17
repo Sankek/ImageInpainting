@@ -185,9 +185,9 @@ class PConvUNet(nn.Module):
                   padding=1, stride=1), # no activation
         )
         
-    def train(self):
-        super().train()
-        if not self.train_encoder_bn:
+    def train(self, T=True):
+        super().train(T)
+        if not self.train_encoder_bn and T:
             for submodule in self.encoder:
                 for name, module in submodule.named_modules():
                     if isinstance(module, nn.BatchNorm2d):
