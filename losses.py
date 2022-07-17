@@ -283,7 +283,7 @@ class InpaintingLoss(nn.Module):
         self.pred_perceptual_factor = pred_perceptual_factor 
         self.comp_perceptual_factor = comp_perceptual_factor 
         self.pred_style_factor = pred_style_factor
-        self.comp_stype_factor = comp_stype_factor 
+        self.comp_style_factor = comp_style_factor 
         self.tv_factor = tv_factor
 
     def forward(self, input, input_mask, target, separate=False):
@@ -301,7 +301,7 @@ class InpaintingLoss(nn.Module):
         perceptual_pred *= self.pred_perceptual_factor 
         perceptual_comp *= self.comp_perceptual_factor 
         style_pred *= self.pred_style_factor
-        style_comp *= self.comp_stype_factor
+        style_comp *= self.comp_style_factor
         tv *= self.tv_factor
 
         if separate:
