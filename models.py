@@ -1,11 +1,14 @@
 import torch
 import torch.nn as nn
+import torchvision
 
 
 class VGG16FE(nn.Module):
     def __init__(self):
         super().__init__()
-        self.vgg16 = torchvision.models.vgg16(pretrained=True)
+        self.vgg16 = torchvision.models.vgg16(
+            weights=torchvision.models.VGG16_Weights.IMAGENET1K_V1
+        )
         
         self.feature_layers = [
             self.vgg16.features[:5], 
