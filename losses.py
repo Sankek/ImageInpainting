@@ -230,7 +230,7 @@ class InpaintingLoss(nn.Module):
     output : scalar
     """
     def __init__(self, 
-                 feature_extractor
+                 feature_extractor,
                  valid_l1_factor=1, 
                  hole_l1_factor=6,
                  pred_perceptual_factor=0.05, 
