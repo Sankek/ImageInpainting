@@ -4,7 +4,7 @@ This is my implementation of [Image Inpainting for Irregular Holes Using Partial
 
 ## Results
 
-It is still in development buy you can already check results.
+It is still in development but you can already check results.
 
 Draw your mask and test the model by yourself:
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Sankek/ImageInpainting/blob/master/Drawn_Mask_Image_Inpainting.ipynb)
