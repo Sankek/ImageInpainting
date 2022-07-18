@@ -206,7 +206,7 @@ class PConvUNet(nn.Module):
         )
         self.pool5 = nn.Upsample(scale_factor=2, mode='nearest') # 128 -> 256
         self.conv5 = MultiArgSequential(
-          ConvLayer(128+64, 64, channels, padding=1, mode = 'pconv'),
+          ConvLayer(128+64, 64, 3, padding=1, mode = 'pconv'),
           PConv2d(64, channels, kernel_size=3, 
                   padding=1, stride=1), # no activation
         )
@@ -245,5 +245,101 @@ class PConvUNet(nn.Module):
         out_mask = torch.cat([out_mask, conv0[1]], dim=1)
         
         out, out_mask = self.conv5(out, out_mask)
+        
+        return out, out_mask
+    
+
+class PConvUNet_v2(nn.Module):
+    def __init__(self, channels=3):
+        super().__init__()
+        self.train_encoder_bn = True
+
+        self.conv0 = MultiArgSequential(
+          ConvLayer(channels, 64, 5, padding=2, mode = 'pconv'),
+        )
+        self.pool0 = ConvLayer(64, 128, 3, stride=2, padding=1, mode = 'pconv') # 256 -> 128
+        self.conv1 = MultiArgSequential(
+          ConvLayer(128, 128, 3, padding=1, mode = 'pconv'),
+        )
+        self.pool1 = ConvLayer(128, 256, 3, stride=2, padding=1, mode = 'pconv') # 128 -> 64
+        self.conv2 = MultiArgSequential(
+          ConvLayer(256, 256, 3, padding=2, dilation=2, mode = 'pconv'),
+          ConvLayer(256, 256, 3, padding=2, dilation=2, mode = 'pconv'),
+        )
+        self.pool2 = ConvLayer(256, 512, 3, stride=2, padding=1, mode = 'pconv') # 64 -> 32
+        self.conv3 = MultiArgSequential(
+          ConvLayer(512, 512, 3, padding=2, dilation=2, mode = 'pconv'), 
+          ConvLayer(512, 512, 3, padding=2, dilation=2, mode = 'pconv'),
+        )
+        self.pool3 = ConvLayer(512, 1024, 3, stride=2, padding=1, mode = 'pconv') # 32 -> 16
+
+        self.encoder = ([self.conv0, self.pool0, self.conv1, self.pool1, self.conv2, self.pool2, self.conv3, self.pool3])
+        
+        # bottleneck
+        self.bottleneck = MultiArgSequential(
+          ConvLayer(1024, 512, 3, padding=1, mode = 'pconv'),
+        )
+
+        self.pool4 = nn.Upsample(scale_factor=2, mode='nearest') # 16 -> 32
+        self.conv4 = MultiArgSequential(
+          ConvLayer(512+512, 512, 3, padding=2, dilation=2, mode = 'pconv'),
+          ConvLayer(512, 256, 3, padding=2, dilation=2, mode = 'pconv'),
+        )       
+        self.pool5 = nn.Upsample(scale_factor=2, mode='nearest') # 32 -> 64
+        self.conv5 = MultiArgSequential(
+          ConvLayer(256+256, 256, 3, padding=2, dilation=2, mode = 'pconv'),
+          ConvLayer(256, 128, 3, padding=2, dilation=2, mode = 'pconv'),
+        )
+        self.pool6 = nn.Upsample(scale_factor=2, mode='nearest') # 64 -> 128
+        self.conv6 = MultiArgSequential(
+          ConvLayer(128+128, 64, 3, padding=1, mode = 'pconv'),
+        )
+        self.pool7 = nn.Upsample(scale_factor=2, mode='nearest') # 128 -> 256
+        self.conv7 = MultiArgSequential(
+          ConvLayer(64+64, 64, 3, padding=1, mode = 'pconv'),
+          PConv2d(64, channels, kernel_size=3, 
+                  padding=1, stride=1), # no activation
+        )
+        
+    def train(self, T=True):
+        super().train(T)
+        if not self.train_encoder_bn and T:
+            for submodule in self.encoder:
+                for name, module in submodule.named_modules():
+                    if isinstance(module, nn.BatchNorm2d):
+                        module.eval()
+
+    def forward(self, input, input_mask):
+        # encoder
+        conv0 = self.conv0(input, input_mask)
+        out = self.pool0(*conv0)
+        conv1 = self.conv1(*out)
+        out = self.pool1(*conv1)
+        conv2 = self.conv2(*out)
+        out = self.pool2(*conv2)
+        conv3 = self.conv3(*out)
+        out = self.pool3(*conv3)
+
+        # bottleneck
+        out = self.bottleneck(*out)
+
+        # decoder
+        out, out_mask = self.pool4(out[0]), self.pool4(out[1])
+        out = torch.cat([out, conv3[0]], dim=1)
+        out_mask = torch.cat([out_mask, conv3[1]], dim=1)
+        out = self.conv4(out, out_mask)
+        out, out_mask = self.pool5(out[0]), self.pool5(out[1])
+        out = torch.cat([out, conv2[0]], dim=1)
+        out_mask = torch.cat([out_mask, conv2[1]], dim=1)
+        out = self.conv5(out, out_mask)
+        out, out_mask = self.pool6(out[0]), self.pool6(out[1])
+        out = torch.cat([out, conv1[0]], dim=1)
+        out_mask = torch.cat([out_mask, conv1[1]], dim=1)
+        out = self.conv6(out, out_mask)
+        out, out_mask = self.pool7(out[0]), self.pool7(out[1])
+        out = torch.cat([out, conv0[0]], dim=1)
+        out_mask = torch.cat([out_mask, conv0[1]], dim=1)
+        
+        out, out_mask = self.conv7(out, out_mask)
         
         return out, out_mask
