@@ -4,17 +4,14 @@ This is my implementation of [Image Inpainting for Irregular Holes Using Partial
 
 ## Results
 
-It is still in development but you can already check results.
+Here are the results of training for about 2 epochs on ImageNet.
 
 Draw your mask and test the model by yourself:
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Sankek/ImageInpainting/blob/master/Drawn_Mask_Image_Inpainting.ipynb)
 
-![Inpainting example](/figures/inpainting_example.png)
-
-The model isn't good on big holes..
-
-![Failure example](/figures/failure_example.png)
-
+![Inpainting example](/figures/example1.png)
+![Inpainting example](/figures/example2.png)
+![Inpainting example](/figures/example3.png)
 
 ## Training 
 
