@@ -99,8 +99,8 @@ def train(model, optimizer, discriminator, discriminator_optimizer,
             # Example images and losses graph 
             # -----------------------------------
             if batch_num % graph_show_interval == 0:
-                losses_suptitle_text = f"{batch_num+1}/{len(dataloader)}"
-                examples_suptitle_text = f"G loss: {losses_storage[-1]}, D loss: {discriminator_losses_storage[-1]}"
+                examples_suptitle_text = f"{batch_num+1}/{len(dataloader)}"
+                losses_suptitle_text = f"G loss: {losses_storage[-1]}, D loss: {discriminator_losses_storage[-1]}"
 
                 model.eval()
                 with torch.no_grad():
@@ -110,6 +110,7 @@ def train(model, optimizer, discriminator, discriminator_optimizer,
                 clear_output(wait=True)
                 train_step_graph(
                     test_images, generated_images, gt_test_images, 
-                    losses_storage, discriminator_losses_storage, losses_suptitle_text, losses_smooth_window
+                    losses_storage, discriminator_losses_storage, 
+                    examples_suptitle_text, losses_suptitle_text, losses_smooth_window
                 )
             # -----------------------------------
