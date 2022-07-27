@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import torch
 from IPython.display import clear_output
 
+from utils import smooth1d, tensor2image, save_state
+
 
 def train_step(optimizer, loss_terms, losses_storage, loss_terms_storage):
     optimizer.zero_grad()
@@ -14,7 +16,7 @@ def train_step(optimizer, loss_terms, losses_storage, loss_terms_storage):
     optimizer.step()
 
     
-def train_step_graph(test_images, generated_images, gt_test_images, losses, D_losses
+def train_step_graph(test_images, generated_images, gt_test_images, losses, D_losses,
                      examples_suptitle_text='', losses_suptitle_text='', losses_smooth_window=25):
     num_examples = len(generated_images)
     
@@ -42,15 +44,14 @@ def train_step_graph(test_images, generated_images, gt_test_images, losses, D_lo
 
     
 def train(model, optimizer, discriminator, discriminator_optimizer, 
-          dataloader, criterion, discriminator_criterion, dataset_mean, dataset_std,  
+          dataloader, validation_dataset, criterion, discriminator_criterion, dataset_mean, dataset_std,  
           epochs=1, graph_show_interval=10, losses_smooth_window=25, device='cpu',
           trained_iters=0, save_interval=10000, save_folder='.', save_name='baseline'):
+
+    batch_size = dataloader.batch_size
     
-    inp_test1, mask_test1, target_test1 = dataset[0]
-    inp_test2, mask_test2, target_test2 = dataset[1]
-    # inp_test = inp_test.unsqueeze(0)
-    # mask_test = mask_test.unsqueeze(0)
-    # target_test = target_test.unsqueeze(0)
+    inp_test1, mask_test1, target_test1 = validation_dataset[0]
+    inp_test2, mask_test2, target_test2 = validation_dataset[1]
     inp_test = torch.stack([inp_test1, inp_test2])
     mask_test = torch.stack([mask_test1, mask_test2])
     target_test = torch.stack([target_test1, target_test2])
