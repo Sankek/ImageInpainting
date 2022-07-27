@@ -307,7 +307,7 @@ class InpaintingAdversarialLoss(InpaintingLoss):
         valid_l1, hole_l1, perceptual_pred, perceptual_comp, style_pred, style_comp, tv = super().forward(input, input_mask, target, separate=True)
         
         if separate:
-            return valid_l1, hole_l1, perceptual_pred, perceptual_comp, style_pred, style_comp, tv
+            return valid_l1, hole_l1, perceptual_pred, perceptual_comp, style_pred, style_comp, tv, adversarial_loss
         else:
             total_loss = valid_l1 + hole_l1 + perceptual_pred + perceptual_comp + style_pred + style_comp + tv + adversarial_loss
             return total_loss
@@ -316,20 +316,22 @@ class InpaintingAdversarialLoss(InpaintingLoss):
 class DiscriminatorLoss(nn.Module):
     def __init__(self,
             real_factor = 0.5,
-            fake_factor = 0.5
+            fake_factor = 0.5,
+            label_smooth = 0.1
         ):
         super().__init__()
         self.bce = nn.BCELoss()
         
         self.real_factor = real_factor
         self.fake_factor = fake_factor
+        self.label_smooth = label_smooth
         
     
     def forward(self, fake_probas, true_probas, y_ones=None, y_zeros=None, separate=False):
         if not y_ones:
-            y_ones = torch.ones_like(true_probas, device=fake_probas.device)
+            y_ones = torch.ones_like(true_probas, device=fake_probas.device)*(1-self.label_smooth)
         if not y_zeros:
-            y_zeros = torch.zeros_like(fake_probas, device=fake_probas.device)
+            y_zeros = torch.zeros_like(fake_probas, device=fake_probas.device)+self.label_smooth
             
         real_loss = self.bce(true_probas, y_ones) 
         fake_loss = self.bce(fake_probas, y_zeros)
