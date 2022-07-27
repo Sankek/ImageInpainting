@@ -16,7 +16,7 @@ def train_step(optimizer, loss_terms, losses_storage, loss_terms_storage):
     optimizer.step()
 
     
-def train_step_graph(test_images, generated_images, gt_test_images, losses, D_losses,
+def train_step_graph(test_images, generated_images, gt_test_images, losses_terms, D_losses_terms,
                      examples_suptitle_text='', losses_suptitle_text='', losses_smooth_window=25):
     num_examples = len(generated_images)
     
@@ -35,11 +35,24 @@ def train_step_graph(test_images, generated_images, gt_test_images, losses, D_lo
     fig.tight_layout(pad=2)
     plt.show()
 
-    fig, ax = plt.subplots(figsize=(5, 5))
-    ax.plot(smooth1d(np.array(losses), losses_smooth_window), label='G_losses')
-    ax.plot(smooth1d(np.array(D_losses), losses_smooth_window), label='D_losses')
-    ax.legend()
+    G_terms = np.array(losses_terms).T
+    D_terms = np.array(D_losses_terms).T
+
+    fig, axs = plt.subplots(4, 2, figsize=(6, 3*4), squeeze=False)
+    labels = ['valid_l1', 'hole_l1', 'perceptual_pred', 'perceptual_comp', 'style_pred', 'style_comp', 'tv', 'adversarial_loss']
+    for i, ax in enumerate([axis for axis in axs.ravel()]):
+        ax.plot(smooth1d(G_terms[i], losses_smooth_window), label=labels[i])
+        ax.legend()
+
     plt.suptitle(losses_suptitle_text)
+    plt.show()
+
+    fig, axs = plt.subplots(1, 2, figsize=(6, 3*1), squeeze=False)
+    labels = ['real_loss', 'fake_loss']
+    for i, ax in enumerate([axis for axis in axs.ravel()]):
+        ax.plot(smooth1d(D_terms[i], losses_smooth_window), label=labels[i])
+        ax.legend()
+
     plt.show()
 
     
@@ -110,7 +123,7 @@ def train(model, optimizer, discriminator, discriminator_optimizer,
                 clear_output(wait=True)
                 train_step_graph(
                     test_images, generated_images, gt_test_images, 
-                    losses_storage, discriminator_losses_storage, 
+                    loss_terms_storage, discriminator_loss_terms_storage, 
                     examples_suptitle_text, losses_suptitle_text, losses_smooth_window
                 )
             # -----------------------------------
