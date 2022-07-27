@@ -41,3 +41,15 @@ def save_state(save_folder, name, model, optimizer, trained_iters, losses, losse
     
 def load_state(save_folder, name):
     return torch.load(os.path.join(save_folder, name, "state.pth"))
+
+
+def get_from_state(state):
+    model = state['model']
+    model.load_state_dict(state['model_state'])
+    
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4) 
+    # because "optimizer = state['optimizer']" gives an error
+    
+    optimizer.load_state_dict(state['optimizer_state'])
+    
+    return model, optimizer

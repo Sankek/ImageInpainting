@@ -90,7 +90,7 @@ class PConv2d(nn.Module):
 class ConvLayer(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=1, stride=1,
                  padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros',
-                 mode='conv', use_relu=True, ReLU_slope=0.2, use_dropout=False, 
+                 mode='conv', use_relu=True, ReLU_nslope=0.2, use_dropout=False, 
                  dropout_p=0.5, use_batchnorm = True):
         super().__init__()
         
@@ -126,7 +126,7 @@ class ConvLayer(nn.Module):
         if use_batchnorm:
             self.bn = nn.BatchNorm2d(out_channels)
         if use_relu:
-            self.relu = nn.LeakyReLU(ReLU_slope)
+            self.relu = nn.LeakyReLU(ReLU_nslope) if ReLU_nslope != 0.0 else nn.ReLU()
 
 
     def forward(self, *args, **kwargs):
@@ -343,3 +343,27 @@ class PConvUNet_v2(nn.Module):
         out, out_mask = self.conv7(out, out_mask)
         
         return out, out_mask
+    
+    
+class DiscriminatorNet(nn.Module):
+    def __init__(self):
+        super().__init__(input_channels=3, conditional_channels=1)
+        
+        c_dims = [64, 128, 256, 256, 256, 256]
+
+        self.model = nn.Sequential(
+            ConvLayer(input_channels+conditional_channels, c_dims[0], 5, stride=1, padding=2, ReLU_nslope=0) # 1 -> 1
+            ConvLayer(c_dims[0], c_dims[1], 5, stride=2, padding=2, ReLU_nslope=0) #    1 -> 1/2
+            ConvLayer(c_dims[1], c_dims[2], 5, stride=2, padding=2, ReLU_nslope=0) #  1/2 -> 1/4
+            ConvLayer(c_dims[2], c_dims[3], 5, stride=2, padding=2, ReLU_nslope=0) #  1/4 -> 1/8
+            ConvLayer(c_dims[3], c_dims[4], 5, stride=2, padding=2, ReLU_nslope=0) #  1/8 -> 1/16
+            ConvLayer(c_dims[4], c_dims[5], 5, stride=2, padding=2, use_batchnorm=False, use_relu=False,) # 1/16 -> 1/32
+            nn.Sigmoid()
+        )
+
+        
+    def forward(self, input, condition):
+        output = self.model(torch.cat([input, condition], dim=1))
+        output = output.view(output.shape[0], -1).mean(dim=1)
+        
+        return output
