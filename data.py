@@ -10,7 +10,7 @@ from masks import MaskGenerator
 
 
 class DataFolder(Dataset):
-    def __init__(self, path, dataset_mean=[0.5]*3, dataset_std=[0.5]*3, ext='.jpg'):
+    def __init__(self, path, dataset_mean=[0.5]*3, dataset_std=[0.5]*3, ext='jpg'):
         super().__init__()
         self.path = path
         self.ext = ext
@@ -47,7 +47,7 @@ class DataFolder(Dataset):
     
     
 class InpaintingDataset(DataFolder):
-    def __init__(self, path, image_size, channels=3, dataset_mean=[0.5]*3, dataset_std=[0.5]*3, ext='.jpg'):
+    def __init__(self, path, image_size, channels=3, dataset_mean=[0.5]*3, dataset_std=[0.5]*3, ext='jpg'):
         super().__init__(path, dataset_mean=dataset_mean, dataset_std=dataset_std, ext=ext)
     
         self.image_size = image_size
@@ -67,9 +67,10 @@ class InpaintingDataset(DataFolder):
     
 class InpaintingPngMaskDataset(DataFolder):
     def __init__(self, path, image_size, channels=3, dataset_mean=[0.5]*3, dataset_std=[0.5]*3, ext='jpg', mask_suffix='_mask.png'):
+        self.mask_suffix = mask_suffix
+
         super().__init__(path, dataset_mean=dataset_mean, dataset_std=dataset_std, ext=ext)
         
-        self.mask_suffix = mask_suffix
         self.image_size = image_size
         self.channels = channels
         

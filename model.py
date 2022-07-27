@@ -346,18 +346,18 @@ class PConvUNet_v2(nn.Module):
     
     
 class DiscriminatorNet(nn.Module):
-    def __init__(self):
-        super().__init__(input_channels=3, conditional_channels=1)
+    def __init__(self, input_channels=3, conditional_channels=1):
+        super().__init__()
         
         c_dims = [64, 128, 256, 256, 256, 256]
 
         self.model = nn.Sequential(
-            ConvLayer(input_channels+conditional_channels, c_dims[0], 5, stride=1, padding=2, ReLU_nslope=0) # 1 -> 1
-            ConvLayer(c_dims[0], c_dims[1], 5, stride=2, padding=2, ReLU_nslope=0) #    1 -> 1/2
-            ConvLayer(c_dims[1], c_dims[2], 5, stride=2, padding=2, ReLU_nslope=0) #  1/2 -> 1/4
-            ConvLayer(c_dims[2], c_dims[3], 5, stride=2, padding=2, ReLU_nslope=0) #  1/4 -> 1/8
-            ConvLayer(c_dims[3], c_dims[4], 5, stride=2, padding=2, ReLU_nslope=0) #  1/8 -> 1/16
-            ConvLayer(c_dims[4], c_dims[5], 5, stride=2, padding=2, use_batchnorm=False, use_relu=False,) # 1/16 -> 1/32
+            ConvLayer(input_channels+conditional_channels, c_dims[0], 5, stride=1, padding=2, ReLU_nslope=0), # 1 -> 1
+            ConvLayer(c_dims[0], c_dims[1], 5, stride=2, padding=2, ReLU_nslope=0), #    1 -> 1/2
+            ConvLayer(c_dims[1], c_dims[2], 5, stride=2, padding=2, ReLU_nslope=0), #  1/2 -> 1/4
+            ConvLayer(c_dims[2], c_dims[3], 5, stride=2, padding=2, ReLU_nslope=0), #  1/4 -> 1/8
+            ConvLayer(c_dims[3], c_dims[4], 5, stride=2, padding=2, ReLU_nslope=0), #  1/8 -> 1/16
+            ConvLayer(c_dims[4], c_dims[5], 5, stride=2, padding=2, use_batchnorm=False, use_relu=False,), # 1/16 -> 1/32
             nn.Sigmoid()
         )
 
