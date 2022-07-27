@@ -279,9 +279,8 @@ class InpaintingLoss(nn.Module):
             return total_loss
         
         
-class InpaintingAdversarialLoss(nn.Module):
-    def __init__(self):
-        super().__init__(
+class InpaintingAdversarialLoss(InpaintingLoss):
+    def __init__(self, 
             feature_extractor,
             valid_l1_factor=1, 
             hole_l1_factor=6,
@@ -291,24 +290,21 @@ class InpaintingAdversarialLoss(nn.Module):
             comp_style_factor=120, 
             tv_factor=0.1,
             adversarial_factor=1
-        )
-        self.inpainting_loss = InpaintingLoss(
-            feature_extractor, valid_l1_factor, hole_l1_factor, 
-            pred_perceptual_factor, comp_perceptual_factor, pred_style_factor, 
-            comp_style_factor, tv_factor)
+        ):
+        super().__init__(feature_extractor, valid_l1_factor, hole_l1_factor, pred_perceptual_factor, comp_perceptual_factor, pred_style_factor, comp_style_factor, tv_factor)
+
         self.bce = nn.BCELoss()
-        
         self.adversarial_factor = adversarial_factor
         
     
     def forward(self, input, input_mask, target, fake_probas, y_ones=None, separate=False):
         if not y_ones:
-            y_ones = torch.ones(fake_probas.shape[0], 1, device=fake_probas.device)
+            y_ones = torch.ones_like(fake_probas, device=fake_probas.device)
             
         adversarial_loss = self.bce(fake_probas, y_ones)
         adversarial_loss *= self.adversarial_factor
         
-        valid_l1, hole_l1, perceptual_pred, perceptual_comp, style_pred, style_comp, tv = self.inpainting_loss(input, input_mask, target, separate=True)
+        valid_l1, hole_l1, perceptual_pred, perceptual_comp, style_pred, style_comp, tv = super().forward(input, input_mask, target, separate=True)
         
         if separate:
             return valid_l1, hole_l1, perceptual_pred, perceptual_comp, style_pred, style_comp, tv
@@ -318,11 +314,11 @@ class InpaintingAdversarialLoss(nn.Module):
         
         
 class DiscriminatorLoss(nn.Module):
-    def __init__(self):
-        super().__init__(
+    def __init__(self,
             real_factor = 0.5,
             fake_factor = 0.5
-        )
+        ):
+        super().__init__()
         self.bce = nn.BCELoss()
         
         self.real_factor = real_factor
@@ -330,19 +326,15 @@ class DiscriminatorLoss(nn.Module):
         
     
     def forward(self, fake_probas, true_probas, y_ones=None, y_zeros=None, separate=False):
-        batch_size = fake_probas.shape[0]
-        device = fake_probas.device
         if not y_ones:
-            y_ones = torch.ones(batch_size, 1, device=device)
+            y_ones = torch.ones_like(true_probas, device=fake_probas.device)
         if not y_zeros:
-            y_zeros = torch.zeros(batch_size, 1, device=device)
+            y_zeros = torch.zeros_like(fake_probas, device=fake_probas.device)
             
-        real_loss = criterion(true_probas, y_ones) 
-        fake_loss = criterion(fake_probas, y_zeros)
+        real_loss = self.bce(true_probas, y_ones) 
+        fake_loss = self.bce(fake_probas, y_zeros)
         real_loss *= self.real_factor
         fake_loss *= self.fake_factor
-        
-        valid_l1, hole_l1, perceptual_pred, perceptual_comp, style_pred, style_comp, tv = self.inpainting_loss(input, input_mask, target, separate=True)
         
         if separate:
             return real_loss, fake_loss
