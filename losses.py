@@ -311,6 +311,38 @@ class InpaintingAdversarialLoss(InpaintingLoss):
         else:
             total_loss = valid_l1 + hole_l1 + perceptual_pred + perceptual_comp + style_pred + style_comp + tv + adversarial_loss
             return total_loss
+
+
+class InpaintingWassersteinLoss(InpaintingLoss):
+    def __init__(self, 
+            feature_extractor,
+            valid_l1_factor=1, 
+            hole_l1_factor=6,
+            pred_perceptual_factor=0.05, 
+            comp_perceptual_factor=0.05, 
+            pred_style_factor=120, 
+            comp_style_factor=120, 
+            tv_factor=0.1,
+            adversarial_factor=1
+        ):
+        super().__init__(feature_extractor, valid_l1_factor, hole_l1_factor, pred_perceptual_factor, comp_perceptual_factor, pred_style_factor, comp_style_factor, tv_factor)
+
+        self.adversarial_factor = adversarial_factor
+        
+    
+    def forward(self, input, input_mask, target, fake_probas, y_ones=None, separate=False):
+        if not y_ones:
+            y_ones = torch.ones_like(fake_probas, device=fake_probas.device)
+            
+        adversarial_loss = -fake_probas.mean()
+        adversarial_loss *= self.adversarial_factor
+        
+        valid_l1, hole_l1, perceptual_pred, perceptual_comp, style_pred, style_comp, tv = super().forward(input, input_mask, target, separate=True)
+        
+        if separate:
+            return valid_l1, hole_l1, perceptual_pred, perceptual_comp, style_pred, style_comp, tv, adversarial_loss
+        else:
+            total_loss = valid_l1 + hole_l1 + perceptual_pred + perceptual_comp + style_pred + style_comp + tv + adversarial_loss
         
         
 class DiscriminatorLoss(nn.Module):
@@ -335,6 +367,29 @@ class DiscriminatorLoss(nn.Module):
             
         real_loss = self.bce(true_probas, y_ones) 
         fake_loss = self.bce(fake_probas, y_zeros)
+        real_loss *= self.real_factor
+        fake_loss *= self.fake_factor
+        
+        if separate:
+            return real_loss, fake_loss
+        else:
+            total_loss = real_loss + fake_loss
+            return total_loss
+
+
+class WassersteinDiscriminatorLoss(nn.Module):
+    def __init__(self,
+            real_factor = 1,
+            fake_factor = 1,
+        ):
+        super().__init__()
+        self.real_factor = real_factor
+        self.fake_factor = fake_factor
+        
+    
+    def forward(self, fake_probas, true_probas, separate=False):
+        real_loss = -true_probas.mean()
+        fake_loss = fake_probas.mean()
         real_loss *= self.real_factor
         fake_loss *= self.fake_factor
         

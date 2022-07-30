@@ -6,15 +6,15 @@ from IPython.display import clear_output
 from utils import smooth1d, tensor2image, save_state
 
 
-def train_step(optimizer, loss_terms, losses_storage, loss_terms_storage):
-    if optimizer:
+def train_step(optimizer, loss_terms, losses_storage, loss_terms_storage, train=True):
+    if train:
         optimizer.zero_grad()
     loss = sum(loss_terms)
     loss_terms = [term.item() for term in loss_terms]
     loss_terms_storage.append(loss_terms)
     losses_storage.append(loss.item())
-    loss.backward()
-    if optimizer:
+    if train:
+        loss.backward()
         optimizer.step()
 
     
@@ -79,34 +79,31 @@ def train(model, optimizer, discriminator, discriminator_optimizer,
     discriminator_losses_storage = []
     discriminator_loss_terms_storage = []
     discriminator_prev_loss = discriminator_loss_threshold+1
+    model.train()
+    discriminator.train()
     for epoch in range(epochs):
         for batch_num, (input, mask, target) in enumerate(dataloader):
             input = input.to(device)
             mask = mask.to(device)
             target = target.to(device)
 
-            model.train()
-            discriminator.eval()
             output, _ = model(input, mask)
-            fake_probas = discriminator(output, mask[:, 0:1, :, :])
-            
-            loss_terms = criterion(output, mask, target, fake_probas, separate=True)
-            train_step(optimizer, loss_terms, losses_storage, loss_terms_storage)
-            
-        
-            model.eval()
-            discriminator.train()
-            with torch.no_grad():
-                output, _ = model(input, mask)
-            fake_probas = discriminator(output, mask[:, 0:1, :, :])
+
+            fake_probas = discriminator(output.detach(), mask[:, 0:1, :, :])
             true_probas = discriminator(target, mask[:, 0:1, :, :])
             discriminator_loss_terms = discriminator_criterion(fake_probas, true_probas, separate=True)
-            
-            if discriminator_prev_loss > discriminator_loss_threshold:
-                train_step(discriminator_optimizer, discriminator_loss_terms, discriminator_losses_storage, discriminator_loss_terms_storage)
-            else:
-                train_step(None, discriminator_loss_terms, discriminator_losses_storage, discriminator_loss_terms_storage)
-            discriminator_prev_loss = discriminator_losses_storage[-1]
+
+            train_step(
+                discriminator_optimizer, discriminator_loss_terms, discriminator_losses_storage, 
+                discriminator_loss_terms_storage, train=discriminator_prev_loss>discriminator_loss_threshold
+            )
+            discriminator_prev_loss = discriminator_losses_storage[-1]            
+
+            fake_probas = discriminator(output, mask[:, 0:1, :, :])
+            loss_terms = criterion(output, mask, target, fake_probas, separate=True)
+            train_step(
+                optimizer, loss_terms, losses_storage, loss_terms_storage
+            )
             
             trained_iters += input.shape[0]
 
