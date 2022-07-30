@@ -91,7 +91,7 @@ class ConvLayer(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=1, stride=1,
                  padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros',
                  mode='conv', use_relu=True, ReLU_nslope=0.2, use_dropout=False, 
-                 dropout_p=0.5, use_batchnorm = True, norm='batchnorm'):
+                 dropout_p=0.5, use_batchnorm = True, norm='batchnorm', spectralnorm=False):
         super().__init__()
         
         conv_args = (
@@ -123,11 +123,16 @@ class ConvLayer(nn.Module):
             raise NotImplementedError
 
         if self.mode == 'conv':
-            self.conv = nn.Conv2d(*conv_args)
+            conv = nn.Conv2d(*conv_args)
         elif self.mode == 'pconv':
-            self.conv = PConv2d(*conv_args)
+            conv = PConv2d(*conv_args)
         else:
-            self.conv = nn.ConvTranspose2d(*conv_args)
+            conv = nn.ConvTranspose2d(*conv_args)
+
+        if spectralnorm:
+            self.conv = SpectralNorm(conv)
+        else:
+            self.conv = conv
 
         if use_dropout:
             self.dropout = nn.Dropout(dropout_p) 
@@ -379,6 +384,66 @@ class DiscriminatorNet(nn.Module):
         return output
 
 
+def l2normalize(v, eps = 1e-12):
+    return v / (v.norm() + eps)
+
+# from https://github.com/zhaoyuzhi/deepfillv2
+class SpectralNorm(nn.Module):
+    
+    def __init__(self, module, name='weight', power_iterations=1):
+        super(SpectralNorm, self).__init__()
+        self.module = module
+        self.name = name
+        self.power_iterations = power_iterations
+        if not self._made_params():
+            self._make_params()
+
+    def _update_u_v(self):
+        u = getattr(self.module, self.name + "_u")
+        v = getattr(self.module, self.name + "_v")
+        w = getattr(self.module, self.name + "_bar")
+
+        height = w.data.shape[0]
+        for _ in range(self.power_iterations):
+            v.data = l2normalize(torch.mv(torch.t(w.view(height,-1).data), u.data))
+            u.data = l2normalize(torch.mv(w.view(height,-1).data, v.data))
+
+        # sigma = torch.dot(u.data, torch.mv(w.view(height,-1).data, v.data))
+        sigma = u.dot(w.view(height, -1).mv(v))
+        setattr(self.module, self.name, w / sigma.expand_as(w))
+
+    def _made_params(self):
+        try:
+            u = getattr(self.module, self.name + "_u")
+            v = getattr(self.module, self.name + "_v")
+            w = getattr(self.module, self.name + "_bar")
+            return True
+        except AttributeError:
+            return False
+
+    def _make_params(self):
+        w = getattr(self.module, self.name)
+
+        height = w.data.shape[0]
+        width = w.view(height, -1).data.shape[1]
+
+        u = nn.Parameter(w.data.new(height).normal_(0, 1), requires_grad=False)
+        v = nn.Parameter(w.data.new(width).normal_(0, 1), requires_grad=False)
+        u.data = l2normalize(u.data)
+        v.data = l2normalize(v.data)
+        w_bar = nn.Parameter(w.data)
+
+        del self.module._parameters[self.name]
+
+        self.module.register_parameter(self.name + "_u", u)
+        self.module.register_parameter(self.name + "_v", v)
+        self.module.register_parameter(self.name + "_bar", w_bar)
+
+    def forward(self, *args):
+        self._update_u_v()
+        return self.module.forward(*args)
+
+
 class WPatchDiscriminator(nn.Module):
     def __init__(self, input_channels=3, conditional_channels=1):
         super().__init__()
@@ -386,12 +451,12 @@ class WPatchDiscriminator(nn.Module):
         c_dims = [64, 128, 256, 256, 256, 256]
 
         self.model = nn.Sequential(
-            ConvLayer(input_channels+conditional_channels, c_dims[0], 5, stride=1, padding=2, ReLU_nslope=0, norm='instancenorm'), # 1 -> 1
-            ConvLayer(c_dims[0], c_dims[1], 5, stride=2, padding=2, norm='instancenorm'), #    1 -> 1/2
-            ConvLayer(c_dims[1], c_dims[2], 5, stride=2, padding=2, norm='instancenorm'), #  1/2 -> 1/4
-            ConvLayer(c_dims[2], c_dims[3], 5, stride=2, padding=2, norm='instancenorm'), #  1/4 -> 1/8
-            ConvLayer(c_dims[3], c_dims[4], 5, stride=2, padding=2, norm='instancenorm'), #  1/8 -> 1/16
-            ConvLayer(c_dims[4], c_dims[5], 5, stride=2, padding=2, use_relu=False, norm=None), # 1/16 -> 1/32
+            ConvLayer(input_channels+conditional_channels, c_dims[0], 5, stride=1, padding=2, ReLU_nslope=0, norm=None, spectralnorm=True), # 1 -> 1
+            ConvLayer(c_dims[0], c_dims[1], 5, stride=2, padding=2, norm='instancenorm', spectralnorm=True), #    1 -> 1/2
+            ConvLayer(c_dims[1], c_dims[2], 5, stride=2, padding=2, norm='instancenorm', spectralnorm=True), #  1/2 -> 1/4
+            ConvLayer(c_dims[2], c_dims[3], 5, stride=2, padding=2, norm='instancenorm', spectralnorm=True), #  1/4 -> 1/8
+            ConvLayer(c_dims[3], c_dims[4], 5, stride=2, padding=2, norm='instancenorm', spectralnorm=True), #  1/8 -> 1/16
+            ConvLayer(c_dims[4], c_dims[5], 5, stride=2, padding=2, use_relu=False, norm=None, spectralnorm=True), # 1/16 -> 1/32
         )
 
         
