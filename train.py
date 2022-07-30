@@ -61,7 +61,7 @@ def train_step_graph(test_images, generated_images, gt_test_images, losses_terms
 def train(model, optimizer, discriminator, discriminator_optimizer, 
           dataloader, validation_dataset, criterion, discriminator_criterion, dataset_mean, dataset_std,  
           epochs=1, graph_show_interval=10, losses_smooth_window=25, device='cpu',
-          trained_iters=0, save_interval=10000, save_folder='.', save_name='baseline', discriminator_loss_threshold=0.5):
+          trained_iters=0, save_interval=10000, save_folder='.', save_name='baseline', discriminator_loss_threshold=None):
 
     batch_size = dataloader.batch_size
     
@@ -78,7 +78,7 @@ def train(model, optimizer, discriminator, discriminator_optimizer,
     loss_terms_storage = []
     discriminator_losses_storage = []
     discriminator_loss_terms_storage = []
-    discriminator_prev_loss = discriminator_loss_threshold+1
+    discriminator_prev_loss = discriminator_loss_threshold+1 if discriminator_loss_threshold else None
     model.train()
     discriminator.train()
     for epoch in range(epochs):
@@ -93,9 +93,10 @@ def train(model, optimizer, discriminator, discriminator_optimizer,
             true_probas = discriminator(target, mask[:, 0:1, :, :])
             discriminator_loss_terms = discriminator_criterion(fake_probas, true_probas, separate=True)
 
+            discriminator_train = discriminator_prev_loss>discriminator_loss_threshold if discriminator_loss_threshold else True
             train_step(
                 discriminator_optimizer, discriminator_loss_terms, discriminator_losses_storage, 
-                discriminator_loss_terms_storage, train=discriminator_prev_loss>discriminator_loss_threshold
+                discriminator_loss_terms_storage, train=discriminator_train
             )
             discriminator_prev_loss = discriminator_losses_storage[-1]            
 
