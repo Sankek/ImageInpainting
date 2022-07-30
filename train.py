@@ -61,7 +61,7 @@ def train_step_graph(test_images, generated_images, gt_test_images, losses_terms
 def train(model, optimizer, discriminator, discriminator_optimizer, 
           dataloader, validation_dataset, criterion, discriminator_criterion, dataset_mean, dataset_std,  
           epochs=1, graph_show_interval=10, losses_smooth_window=25, device='cpu',
-          trained_iters=0, save_interval=10000, save_folder='.', save_name='baseline', discriminator_loss_threshold=None):
+          trained_iters=0, save_interval=10000, save_folder='.', save_name='baseline', discriminator_loss_threshold=None, train_model=True):
 
     batch_size = dataloader.batch_size
     
@@ -87,7 +87,11 @@ def train(model, optimizer, discriminator, discriminator_optimizer,
             mask = mask.to(device)
             target = target.to(device)
 
-            output, _ = model(input, mask)
+            if train_model:
+                output, _ = model(input, mask)
+            else:
+                with torch.no_grad():
+                    output, _ = model(input, mask)
 
             fake_probas = discriminator(output.detach(), mask[:, 0:1, :, :])
             true_probas = discriminator(target, mask[:, 0:1, :, :])
@@ -103,7 +107,7 @@ def train(model, optimizer, discriminator, discriminator_optimizer,
             fake_probas = discriminator(output, mask[:, 0:1, :, :])
             loss_terms = criterion(output, mask, target, fake_probas, separate=True)
             train_step(
-                optimizer, loss_terms, losses_storage, loss_terms_storage
+                optimizer, loss_terms, losses_storage, loss_terms_storage, train=train_model
             )
             
             trained_iters += input.shape[0]
