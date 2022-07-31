@@ -91,31 +91,17 @@ class ConvLayer(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=1, stride=1,
                  padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros',
                  mode='conv', use_relu=True, ReLU_nslope=0.2, use_dropout=False, 
-                 dropout_p=0.5, use_batchnorm = True, norm='batchnorm', spectralnorm=False):
+                 dropout_p=0.5, norm='batchnorm', spectralnorm=False):
         super().__init__()
         
         conv_args = (
             in_channels, out_channels, kernel_size, stride,
             padding, dilation, groups, bias, padding_mode
         )
-
-        if norm == 'batchnorm':
-            self.norm = nn.BatchNorm2d(out_channels)
-        elif norm == 'instancenorm':
-            self.norm = nn.InstanceNorm2d(out_channels)
-        elif norm is None:
-            self.norm = None
-        else:
-            raise NotImplementedError
-        self.use_batchnorm = use_batchnorm
+        
         self.use_dropout = use_dropout
         self.use_relu = use_relu
         self.mode = mode
-
-        if self.use_batchnorm:
-            self.bias = False
-        else:
-            self.bias = True
 
         available_modes = ['conv', 'deconv', 'pconv']
         if not self.mode in available_modes:
@@ -136,8 +122,16 @@ class ConvLayer(nn.Module):
 
         if use_dropout:
             self.dropout = nn.Dropout(dropout_p) 
-        if use_batchnorm:
-            self.bn = nn.BatchNorm2d(out_channels)
+
+        if norm == 'batchnorm':
+            self.norm = nn.BatchNorm2d(out_channels)
+        elif norm == 'instancenorm':
+            self.norm = nn.InstanceNorm2d(out_channels)
+        elif norm is None:
+            self.norm = None
+        else:
+            raise NotImplementedError
+
         if use_relu:
             self.relu = nn.LeakyReLU(ReLU_nslope) if ReLU_nslope != 0.0 else nn.ReLU()
 
@@ -150,7 +144,7 @@ class ConvLayer(nn.Module):
 
         if hasattr(self, 'norm') and self.norm:
             out = self.norm(out)
-        elif self.use_batchnorm:
+        elif hasattr(self, 'bn') and self.bn: # my old models have attr 'bn' not 'norm'
             out = self.bn(out)
         if self.use_dropout:
             out = self.dropout(out)
@@ -451,7 +445,7 @@ class WPatchDiscriminator(nn.Module):
         c_dims = [64, 128, 256, 256, 256, 256]
 
         self.model = nn.Sequential(
-            ConvLayer(input_channels+conditional_channels, c_dims[0], 5, stride=1, padding=2, ReLU_nslope=0, norm=None, spectralnorm=True), # 1 -> 1
+            ConvLayer(input_channels+conditional_channels, c_dims[0], 5, stride=1, padding=2, norm=None, spectralnorm=True), # 1 -> 1
             ConvLayer(c_dims[0], c_dims[1], 5, stride=2, padding=2, norm='instancenorm', spectralnorm=True), #    1 -> 1/2
             ConvLayer(c_dims[1], c_dims[2], 5, stride=2, padding=2, norm='instancenorm', spectralnorm=True), #  1/2 -> 1/4
             ConvLayer(c_dims[2], c_dims[3], 5, stride=2, padding=2, norm='instancenorm', spectralnorm=True), #  1/4 -> 1/8
