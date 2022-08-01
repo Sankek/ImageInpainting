@@ -82,13 +82,14 @@ def train(model, optimizer, discriminator, discriminator_optimizer,
     discriminator_losses_storage = []
     discriminator_loss_terms_storage = []
     discriminator_prev_loss = discriminator_loss_threshold+1 if discriminator_loss_threshold else None
-    model.train()
-    discriminator.train()
+
 
     optimizer.zero_grad()
     discriminator_optimizer.zero_grad()
     for epoch in range(epochs):
         for batch_num, (input, mask, true_image) in enumerate(dataloader):
+            model.train(train_model)
+            discriminator.train()
             current_batch_size = input.shape[0]
             input = input.to(device)
             mask = mask.to(device)
