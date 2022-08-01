@@ -49,13 +49,13 @@ def train_step_graph(test_images, generated_images, gt_test_images, losses_terms
     plt.suptitle(losses_suptitle_text)
     plt.show()
 
-    fig, axs = plt.subplots(1, 3, figsize=(9, 3), squeeze=False)
-    labels = ['real_loss', 'fake_loss', 'D_loss']
+    fig, axs = plt.subplots(2, 2, figsize=(6, 3*2), squeeze=False)
+    labels = ['real_loss', 'fake_loss', 'gradient_penalty', 'D_loss']
     for i, ax in enumerate([axis for axis in axs.ravel()]):
-        if i < 2:
+        if i < 3:
             ax.plot(smooth1d(D_terms[i], losses_smooth_window), label=labels[i])
         else:
-            ax.plot(smooth1d(D_terms[0]+D_terms[0], losses_smooth_window), label=labels[2])
+            ax.plot(smooth1d(D_terms[0]+D_terms[1]+D_terms[2], losses_smooth_window), label=labels[3])
         ax.legend()
 
     plt.show()
@@ -107,7 +107,8 @@ def train(model, optimizer, discriminator, discriminator_optimizer,
 
             interp_coef = torch.rand(current_batch_size, 1, 1, 1, device=device)
             interpolated_image = interp_coef*true_image + (1-interp_coef)*fake_image.detach()
-            interpolated_output = discriminator(interpolated_image)
+            interpolated_image.requires_grad = True
+            interpolated_output = discriminator(interpolated_image, mask[:, 0:1, :, :])
 
             discriminator_loss_terms = discriminator_criterion(fake_output, true_output, interpolated_image, interpolated_output, separate=True)
 
