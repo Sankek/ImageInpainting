@@ -399,3 +399,42 @@ class WassersteinDiscriminatorLoss(nn.Module):
             total_loss = real_loss + fake_loss
             return total_loss
         
+
+class WassersteinGradientPenaltyDiscriminatorLoss(nn.Module):
+    def __init__(self,
+            real_factor = 1,
+            fake_factor = 1,
+            penalty_factor = 10
+        ):
+        super().__init__()
+        self.real_factor = real_factor
+        self.fake_factor = fake_factor
+        self.penalty_factor = penalty_factor
+        
+    
+    def forward(self, fake_output, true_output, interpolated_image, interpolated_output, separate=False):
+        real_loss = -true_output.mean()
+        fake_loss = fake_output.mean()
+
+        device = interpolated_image.device
+        grad_outputs = torch.ones_like(interpolated_output, device=device)
+        gradients = torch.autograd.grad(
+            outputs=interpolated_output,
+            inputs=interpolated_image,
+            grad_outputs=grad_outputs,
+            create_graph=True,
+            retain_graph=True,
+        )[0]
+
+        gradients_norm = gradients.view(gradients.shape[0], -1).norm(2, dim=1)
+        gradient_penalty = torch.square(gradients_norm-1).mean()
+        
+        real_loss *= self.real_factor
+        fake_loss *= self.fake_factor
+        gradient_penalty *= self.penalty_factor
+
+        if separate:
+            return real_loss, fake_loss, gradient_penalty
+        else:
+            total_loss = real_loss + fake_loss + gradient_penalty
+            return total_loss

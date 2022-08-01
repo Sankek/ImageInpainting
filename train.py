@@ -6,16 +6,16 @@ from IPython.display import clear_output
 from utils import smooth1d, tensor2image, save_state
 
 
-def train_step(optimizer, loss_terms, losses_storage, loss_terms_storage, train=True):
-    if train:
-        optimizer.zero_grad()
+def train_step(optimizer, loss_terms, losses_storage, loss_terms_storage, train=True, grad_accum=1, batch_num=None):
     loss = sum(loss_terms)
     loss_terms = [term.item() for term in loss_terms]
     loss_terms_storage.append(loss_terms)
     losses_storage.append(loss.item())
     if train:
-        loss.backward()
-        optimizer.step()
+        (loss/grad_accum).backward()
+        if (grad_accum==1) or (batch_num%grad_accum == 0):
+            optimizer.step()
+            optimizer.zero_grad()
 
     
 def train_step_graph(test_images, generated_images, gt_test_images, losses_terms, D_losses_terms,
@@ -49,10 +49,13 @@ def train_step_graph(test_images, generated_images, gt_test_images, losses_terms
     plt.suptitle(losses_suptitle_text)
     plt.show()
 
-    fig, axs = plt.subplots(1, 2, figsize=(6, 3*1), squeeze=False)
-    labels = ['real_loss', 'fake_loss']
+    fig, axs = plt.subplots(1, 3, figsize=(9, 3), squeeze=False)
+    labels = ['real_loss', 'fake_loss', 'D_loss']
     for i, ax in enumerate([axis for axis in axs.ravel()]):
-        ax.plot(smooth1d(D_terms[i], losses_smooth_window), label=labels[i])
+        if i < 2:
+            ax.plot(smooth1d(D_terms[i], losses_smooth_window), label=labels[i])
+        else:
+            ax.plot(smooth1d(D_terms[0]+D_terms[0], losses_smooth_window), label=labels[2])
         ax.legend()
 
     plt.show()
@@ -61,7 +64,7 @@ def train_step_graph(test_images, generated_images, gt_test_images, losses_terms
 def train(model, optimizer, discriminator, discriminator_optimizer, 
           dataloader, validation_dataset, criterion, discriminator_criterion, dataset_mean, dataset_std,  
           epochs=1, graph_show_interval=10, losses_smooth_window=25, device='cpu',
-          trained_iters=0, save_interval=10000, save_folder='.', save_name='baseline', discriminator_loss_threshold=None, train_model=True):
+          trained_iters=0, save_interval=10000, save_folder='.', save_name='baseline', discriminator_loss_threshold=None, train_model=True, critic_steps=1):
 
     batch_size = dataloader.batch_size
     
@@ -81,36 +84,48 @@ def train(model, optimizer, discriminator, discriminator_optimizer,
     discriminator_prev_loss = discriminator_loss_threshold+1 if discriminator_loss_threshold else None
     model.train()
     discriminator.train()
+
+    optimizer.zero_grad()
+    discriminator_optimizer.zero_grad()
     for epoch in range(epochs):
-        for batch_num, (input, mask, target) in enumerate(dataloader):
+        for batch_num, (input, mask, true_image) in enumerate(dataloader):
+            current_batch_size = input.shape[0]
             input = input.to(device)
             mask = mask.to(device)
-            target = target.to(device)
+            true_image = true_image.to(device)
 
-            if train_model:
-                output, _ = model(input, mask)
+            train_condition = train_model and (batch_num%critic_steps == 0)
+
+            if train_condition:
+                fake_image, _ = model(input, mask)
             else:
                 with torch.no_grad():
-                    output, _ = model(input, mask)
+                    fake_image, _ = model(input, mask)
 
-            fake_probas = discriminator(output.detach(), mask[:, 0:1, :, :])
-            true_probas = discriminator(target, mask[:, 0:1, :, :])
-            discriminator_loss_terms = discriminator_criterion(fake_probas, true_probas, separate=True)
+            fake_output = discriminator(fake_image.detach(), mask[:, 0:1, :, :])
+            true_output = discriminator(true_image, mask[:, 0:1, :, :])
+
+            interp_coef = torch.rand(current_batch_size, 1, 1, 1, device=device)
+            interpolated_image = interp_coef*true_image + (1-interp_coef)*fake_image.detach()
+            interpolated_output = discriminator(interpolated_image)
+
+            discriminator_loss_terms = discriminator_criterion(fake_output, true_output, interpolated_image, interpolated_output, separate=True)
 
             discriminator_train = discriminator_prev_loss>discriminator_loss_threshold if discriminator_loss_threshold else True
             train_step(
                 discriminator_optimizer, discriminator_loss_terms, discriminator_losses_storage, 
-                discriminator_loss_terms_storage, train=discriminator_train
+                discriminator_loss_terms_storage, train=discriminator_train, grad_accum=critic_steps, batch_num=batch_num
             )
             discriminator_prev_loss = discriminator_losses_storage[-1]            
 
-            fake_probas = discriminator(output, mask[:, 0:1, :, :])
-            loss_terms = criterion(output, mask, target, fake_probas, separate=True)
+        
+            fake_output = discriminator(fake_image, mask[:, 0:1, :, :])
+            loss_terms = criterion(fake_image, mask, true_image, fake_output, separate=True)
             train_step(
-                optimizer, loss_terms, losses_storage, loss_terms_storage, train=train_model
+                optimizer, loss_terms, losses_storage, loss_terms_storage, train=train_condition
             )
             
-            trained_iters += input.shape[0]
+            trained_iters += current_batch_size
 
             losses_save_interval = batch_size
             if (trained_iters % save_interval) < batch_size:

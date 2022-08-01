@@ -438,19 +438,19 @@ class SpectralNorm(nn.Module):
         return self.module.forward(*args)
 
 
-class WPatchDiscriminator(nn.Module):
+class PatchDiscriminator(nn.Module):
     def __init__(self, input_channels=3, conditional_channels=1):
         super().__init__()
         
         c_dims = [64, 128, 256, 256, 256, 256]
 
         self.model = nn.Sequential(
-            ConvLayer(input_channels+conditional_channels, c_dims[0], 5, stride=1, padding=2, norm=None, spectralnorm=True), # 1 -> 1
-            ConvLayer(c_dims[0], c_dims[1], 5, stride=2, padding=2, norm='instancenorm', spectralnorm=True), #    1 -> 1/2
-            ConvLayer(c_dims[1], c_dims[2], 5, stride=2, padding=2, norm='instancenorm', spectralnorm=True), #  1/2 -> 1/4
-            ConvLayer(c_dims[2], c_dims[3], 5, stride=2, padding=2, norm='instancenorm', spectralnorm=True), #  1/4 -> 1/8
-            ConvLayer(c_dims[3], c_dims[4], 5, stride=2, padding=2, norm='instancenorm', spectralnorm=True), #  1/8 -> 1/16
-            ConvLayer(c_dims[4], c_dims[5], 5, stride=2, padding=2, use_relu=False, norm=None, spectralnorm=True), # 1/16 -> 1/32
+            ConvLayer(input_channels+conditional_channels, c_dims[0], 5, stride=1, padding=2, norm=None), # 1 -> 1
+            ConvLayer(c_dims[0], c_dims[1], 5, stride=2, padding=2, norm='instancenorm'), #    1 -> 1/2
+            ConvLayer(c_dims[1], c_dims[2], 5, stride=2, padding=2, norm='instancenorm'), #  1/2 -> 1/4
+            ConvLayer(c_dims[2], c_dims[3], 5, stride=2, padding=2, norm='instancenorm'), #  1/4 -> 1/8
+            ConvLayer(c_dims[3], c_dims[4], 5, stride=2, padding=2, norm='instancenorm'), #  1/8 -> 1/16
+            ConvLayer(c_dims[4], c_dims[5], 5, stride=2, padding=2, use_relu=False, norm=None), # 1/16 -> 1/32
         )
 
         
