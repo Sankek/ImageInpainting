@@ -64,7 +64,8 @@ def train_step_graph(test_images, generated_images, gt_test_images, losses_terms
 def train(model, optimizer, discriminator, discriminator_optimizer, 
           dataloader, validation_dataset, criterion, discriminator_criterion, dataset_mean, dataset_std,  
           epochs=1, graph_show_interval=10, losses_smooth_window=25, device='cpu',
-          trained_iters=0, save_interval=10000, save_folder='.', save_name='baseline', discriminator_loss_threshold=None, train_model=True, critic_steps=1):
+          trained_iters=0, save_interval=10000, save_folder='.', save_name='baseline', 
+          discriminator_loss_threshold=None, train_model=True, critic_steps=1, start_train_after=0):
 
     batch_size = dataloader.batch_size
     
@@ -95,7 +96,7 @@ def train(model, optimizer, discriminator, discriminator_optimizer,
             mask = mask.to(device)
             true_image = true_image.to(device)
 
-            train_condition = train_model and (batch_num%critic_steps == 0)
+            train_condition = train_model and (batch_num%critic_steps == 0) and (start_train_after <= trained_iters)
 
             if train_condition:
                 fake_image, _ = model(input, mask)
@@ -116,7 +117,7 @@ def train(model, optimizer, discriminator, discriminator_optimizer,
             discriminator_train = discriminator_prev_loss>discriminator_loss_threshold if discriminator_loss_threshold else True
             train_step(
                 discriminator_optimizer, discriminator_loss_terms, discriminator_losses_storage, 
-                discriminator_loss_terms_storage, train=discriminator_train, grad_accum=critic_steps, batch_num=batch_num
+                discriminator_loss_terms_storage, train=discriminator_train
             )
             discriminator_prev_loss = discriminator_losses_storage[-1]            
 
