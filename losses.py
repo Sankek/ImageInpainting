@@ -330,10 +330,7 @@ class InpaintingWassersteinLoss(InpaintingLoss):
         self.adversarial_factor = adversarial_factor
         
     
-    def forward(self, input, input_mask, target, fake_probas, y_ones=None, separate=False):
-        if not y_ones:
-            y_ones = torch.ones_like(fake_probas, device=fake_probas.device)
-            
+    def forward(self, input, input_mask, target, fake_probas, y_ones=None, separate=False):   
         adversarial_loss = -fake_probas.mean()
         adversarial_loss *= self.adversarial_factor
         
